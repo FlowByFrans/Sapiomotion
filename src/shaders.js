@@ -112,6 +112,43 @@ void main(){
   o = vec4(c, 1.0);
 }`;
 
+// ---------------------------------------------------------------- vertical gradient
+// Two 8-stop vertical gradients (A, B) blended by uMix, softened between
+// stops, with a slow horizontal undulation so the light never sits dead still.
+export const FS_GRADIENT = HEAD + COMMON + `
+in vec2 vUv;
+uniform vec2 uRes;
+uniform float uTime;
+uniform float uMix;
+uniform float uStops[8];
+uniform vec3 uA[8];
+uniform vec3 uB[8];
+uniform float uWave;
+out vec4 o;
+vec3 ramp1(vec3 c[8], float y){
+  vec3 col = c[0];
+  for (int i = 1; i < 8; i++){
+    float t = clamp((y - uStops[i - 1]) / (uStops[i] - uStops[i - 1]), 0.0, 1.0);
+    col = mix(col, c[i], t);
+  }
+  return col;
+}
+// linear stops, then a small box blur along y: smooth, with no plateaus
+vec3 ramp(vec3 c[8], float y){
+  vec3 s = vec3(0.0);
+  for (int k = -3; k <= 3; k++) s += ramp1(c, y + float(k) * 0.018);
+  return s / 7.0;
+}
+void main(){
+  vec2 q = gl_FragCoord.xy / uRes;
+  float y = 1.0 - q.y;
+  float x = q.x * uRes.x / uRes.y;
+  // uTime is a loop phase (0..2pi over the piece) so the motion is seamless
+  y += uWave * (sin(x * 2.3 + uTime) * 0.6 + sin(x * 5.1 - 2.0 * uTime) * 0.4);
+  vec3 c = mix(ramp(uA, y), ramp(uB, y), uMix);
+  o = vec4(c, 1.0);
+}`;
+
 // ---------------------------------------------------------------- image sprite
 // Textured quad with optional unfurl swirl, organic radial reveal and a
 // cell-by-cell "block build".
@@ -132,6 +169,7 @@ uniform float uGridDur;
 uniform float uGridSpread;
 uniform vec3 uGridFlash;
 uniform float uAspect;      // w / h of the quad, for square cells
+uniform float uLod;         // mip bias: cheap defocus for soft fades
 out vec4 o;
 
 float easeOutBack(float x){ float s = 1.9; x -= 1.0; return 1.0 + (s + 1.0) * x * x * x + s * x * x; }
@@ -161,7 +199,7 @@ void main(){
   if (uSwirl != 0.0){
     uv = uSwirlC + rot2(uSwirl * smoothstep(0.0, 0.8, r)) * d;
   }
-  vec4 c = texture(uTex, uv);
+  vec4 c = texture(uTex, uv, uLod);
   if (uReveal < 2.0){
     float a = atan(d.y, d.x);
     float nz = texture(uNoise, vec2(a / TAU * 2.0, 0.37)).b + texture(uNoise, vec2(a / TAU * 5.0, 0.71)).r * 0.5;

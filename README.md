@@ -42,6 +42,36 @@ node scripts/render.mjs --size 1080x1080       # square cut
 node scripts/render.mjs --still 0.5,2.3 --sub 4   # quick stills in out/stills
 ```
 
+## Sapio: "Join the competition." loop
+
+`src/join.js` is a calm, editorial 7.5 s loop at 60 fps, modelled on the
+"Get on board" reference:
+
+- A hairline grid and a vertical gradient that breathes between a mint-lit
+  message state and a deep logo state.
+- "Join the competition." in Figtree. It sits on two lines in the square cut
+  and one line in widescreen, and leaves word by word with a soft lift and blur.
+- The Sapio mark spins in as an extruded mint slab, using a perspective
+  homography per layer, then slides into the lockup while "sapio" types out
+  beside it.
+- The line drops back in at the end, so the last frame meets the first and the
+  video loops seamlessly on X.
+
+| file | format |
+| --- | --- |
+| `out/sapio-join-1080x1080.mp4` | 1:1, 60 fps, H.264, BT.709, silent |
+| `out/sapio-join-1920x1080.mp4` | 16:9, 60 fps, H.264, BT.709, silent |
+
+```bash
+node scripts/render.mjs --comp join --size 1080x1080 --out out/sapio-join-1080x1080.mp4
+```
+
+Timing lives in the `T` table at the top of `src/join.js`. The lockup comes
+from `assets/sapio/sapio-lockup.svg`, and the typeface is Figtree Medium
+(SIL OFL, `assets/fonts/`).
+
+## Notes
+
 The generated assets in `assets/gen/` are rebuilt automatically on the first
 render. You can also open `src/index.html?play` from a local server for a
 real-time preview without motion blur.

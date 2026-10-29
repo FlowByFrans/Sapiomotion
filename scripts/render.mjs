@@ -5,6 +5,7 @@
 //   node scripts/render.mjs --size 1080x1080      -> square cut
 //   node scripts/render.mjs --still 0,0.5,1.2     -> PNG stills at those times
 //   node scripts/render.mjs --sub 4 --range 0:60  -> quick partial preview
+//   node scripts/render.mjs --comp join --size 1080x1080 -> Sapio "join" loop
 
 import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
@@ -22,7 +23,8 @@ const args = Object.fromEntries(
 );
 const [W, H] = String(args.size || '1920x1080').split('x').map(Number);
 const SUB = Number(args.sub || 12);
-const OUT = path.resolve(ROOT, args.out || `out/srt-${W}x${H}.mp4`);
+const COMP = String(args.comp || 'srt');
+const OUT = path.resolve(ROOT, args.out || `out/${COMP}-${W}x${H}.mp4`);
 
 // make sure generated assets exist
 const gen = path.join(ROOT, 'assets/gen');
@@ -31,7 +33,7 @@ if (!need.every((f) => fs.existsSync(path.join(gen, f)))) {
   for (const s of ['build_sdf.py', 'build_noise.py', 'build_layers.py']) execFileSync('python3', [path.join(ROOT, 'tools', s)], { stdio: 'inherit' });
 }
 
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.bin': 'application/octet-stream' };
+const MIME = { '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.bin': 'application/octet-stream' };
 const server = http.createServer((req, res) => {
   const p = path.join(ROOT, decodeURIComponent(new URL(req.url, 'http://x').pathname));
   if (!p.startsWith(ROOT) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
@@ -47,7 +49,7 @@ page.on('console', (m) => console.log('[page]', m.text()));
 page.on('pageerror', (e) => { console.error('[page error]', e.message); process.exit(1); });
 await page.goto(`http://127.0.0.1:${port}/src/index.html`);
 await page.waitForFunction(() => window.SAPIO);
-const info = await page.evaluate(([w, h]) => window.SAPIO.init({ width: w, height: h }), [W, H]);
+const info = await page.evaluate(([w, h, comp]) => window.SAPIO.init({ width: w, height: h, comp }), [W, H, COMP]);
 if (args.debug) await page.evaluate((d) => { window.SAPIO_DEBUG = d; }, String(args.debug));
 
 const grab = async (i) => Buffer.from(await page.evaluate(([i, sub]) => window.SAPIO.frame(i, { subframes: sub }), [i, SUB]), 'base64');
@@ -66,7 +68,7 @@ if (args.still) {
 } else {
   const [a, b] = args.range ? String(args.range).split(':').map(Number) : [0, info.frames];
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
-  const audio = path.join(ROOT, 'out/audio.wav');
+  const audio = path.join(ROOT, COMP === 'srt' ? 'out/audio.wav' : `out/${COMP}-audio.wav`);
   const withAudio = !args.range && fs.existsSync(audio) && !args.mute;
   const ff = spawn('ffmpeg', [
     '-y', '-loglevel', 'error',

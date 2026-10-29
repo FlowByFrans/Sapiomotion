@@ -18,6 +18,7 @@ export class Renderer {
     const P = (fs, label, vs = S.VS_QUAD) => new Program(gl, vs, fs, label);
     this.prog = {
       liquid: P(S.FS_LIQUID, 'liquid', S.VS_FULL),
+      gradient: P(S.FS_GRADIENT, 'gradient', S.VS_FULL),
       sprite: P(S.FS_SPRITE, 'sprite'),
       word: P(S.FS_WORD, 'word'),
       pattern: P(S.FS_PATTERN, 'pattern', S.VS_FULL),
@@ -132,14 +133,24 @@ export class Renderer {
   }
 
   // Draw a texture on a transformed quad.
+  gradient(p) {
+    blend.none(this.gl);
+    this._full(this.prog.gradient, {
+      uRes: [this.W, this.H], uTime: p.time, uMix: p.mix, uStops: new Float32Array(p.stops),
+      uA: new Float32Array(p.a.flat()), uB: new Float32Array(p.b.flat()), uWave: p.wave ?? 0,
+    });
+  }
+
+  // Draw a texture on a transformed quad. `q.M` may carry a ready-made
+  // (e.g. perspective) matrix instead of the affine placement fields.
   sprite(tex, q, cam, p = {}) {
     blend.over(this.gl);
-    const M = withCamera(quadMatrix(q), cam);
+    const M = q.M ?? withCamera(quadMatrix(q), cam);
     this._quad(this.prog.sprite, M, {
       uTex: tex, uNoise: this.tex.noise, uOpacity: p.opacity ?? 1, uTint: p.tint ?? [1, 1, 1], uTintAmt: p.tintAmt ?? 0,
       uBright: p.bright ?? 1, uSwirl: p.swirl ?? 0, uSwirlC: p.swirlC ?? [0.5, 0.5], uReveal: p.reveal ?? 9,
       uGridN: p.gridN ?? 0, uGridT: p.gridT ?? 0, uGridDur: p.gridDur ?? 0.15, uGridSpread: p.gridSpread ?? 0.3,
-      uGridFlash: p.gridFlash ?? [1, 1, 1], uAspect: q.w / q.h,
+      uGridFlash: p.gridFlash ?? [1, 1, 1], uAspect: q.aspect ?? q.w / q.h, uLod: p.lod ?? 0,
     });
   }
 
