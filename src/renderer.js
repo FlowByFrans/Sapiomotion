@@ -133,12 +133,41 @@ export class Renderer {
   }
 
   // Draw a texture on a transformed quad.
+  // Vertical gradient: two 8-stop ramps (a, b) blended by `mix`, linear
+  // between stops and softened with a small box blur, baked into a 1D LUT.
   gradient(p) {
-    blend.none(this.gl);
-    this._full(this.prog.gradient, {
-      uRes: [this.W, this.H], uTime: p.time, uMix: p.mix, uStops: new Float32Array(p.stops),
-      uA: new Float32Array(p.a.flat()), uB: new Float32Array(p.b.flat()), uWave: p.wave ?? 0,
-    });
+    const gl = this.gl;
+    const N = 512;
+    const lut = (this._lutData ??= new Float32Array(N * 4));
+    const ramp = (cols, y) => {
+      let c = cols[0];
+      for (let i = 1; i < 8; i++) {
+        const t = Math.min(1, Math.max(0, (y - p.stops[i - 1]) / (p.stops[i] - p.stops[i - 1])));
+        c = [c[0] + (cols[i][0] - c[0]) * t, c[1] + (cols[i][1] - c[1]) * t, c[2] + (cols[i][2] - c[2]) * t];
+      }
+      return c;
+    };
+    for (let j = 0; j < N; j++) {
+      const y = -0.1 + (1.2 * (j + 0.5)) / N;
+      const acc = [0, 0, 0];
+      for (let k = -3; k <= 3; k++) {
+        const a = ramp(p.a, y + k * 0.018), b = ramp(p.b, y + k * 0.018);
+        for (let c = 0; c < 3; c++) acc[c] += (a[c] + (b[c] - a[c]) * p.mix) / 7;
+      }
+      lut.set([acc[0], acc[1], acc[2], 1], j * 4);
+    }
+    if (!this._lut) {
+      this._lut = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, this._lut);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, this._lut);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, N, 1, 0, gl.RGBA, gl.FLOAT, lut);
+    blend.none(gl);
+    this._full(this.prog.gradient, { uRes: [this.W, this.H], uTime: p.time, uLut: this._lut, uWave: p.wave ?? 0 });
   }
 
   // Draw a texture on a transformed quad. `q.M` may carry a ready-made
@@ -263,9 +292,10 @@ export class Renderer {
   // comp: { scene(R, t) -> draws into R.tScene, post(t) -> params, hud(ctx, t, W, H) }
   renderFrame(comp, frame, fps, opts = {}) {
     const gl = this.gl;
-    const N = opts.subframes ?? 8;
     const shutter = opts.shutter ?? 0.5;
     const t0 = frame / fps;
+    // a comp may ask for fewer sub-frames where nothing moves
+    const N = comp.subframes ? comp.subframes(t0, opts.subframes ?? 8) : opts.subframes ?? 8;
     this.bind(this.tAccum, [0, 0, 0, 0]);
     for (let i = 0; i < N; i++) {
       const ts = t0 + ((i + 0.5) / N - 0.5) * shutter / fps;

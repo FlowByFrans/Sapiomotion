@@ -113,40 +113,22 @@ void main(){
 }`;
 
 // ---------------------------------------------------------------- vertical gradient
-// Two 8-stop vertical gradients (A, B) blended by uMix, softened between
-// stops, with a slow horizontal undulation so the light never sits dead still.
+// Samples a 1D colour ramp (built on the CPU, see Renderer.gradient) with a
+// slow horizontal undulation so the light never sits dead still.
 export const FS_GRADIENT = HEAD + COMMON + `
 in vec2 vUv;
 uniform vec2 uRes;
 uniform float uTime;
-uniform float uMix;
-uniform float uStops[8];
-uniform vec3 uA[8];
-uniform vec3 uB[8];
+uniform sampler2D uLut;   // covers y in [-0.1, 1.1]
 uniform float uWave;
 out vec4 o;
-vec3 ramp1(vec3 c[8], float y){
-  vec3 col = c[0];
-  for (int i = 1; i < 8; i++){
-    float t = clamp((y - uStops[i - 1]) / (uStops[i] - uStops[i - 1]), 0.0, 1.0);
-    col = mix(col, c[i], t);
-  }
-  return col;
-}
-// linear stops, then a small box blur along y: smooth, with no plateaus
-vec3 ramp(vec3 c[8], float y){
-  vec3 s = vec3(0.0);
-  for (int k = -3; k <= 3; k++) s += ramp1(c, y + float(k) * 0.018);
-  return s / 7.0;
-}
 void main(){
   vec2 q = gl_FragCoord.xy / uRes;
   float y = 1.0 - q.y;
   float x = q.x * uRes.x / uRes.y;
   // uTime is a loop phase (0..2pi over the piece) so the motion is seamless
   y += uWave * (sin(x * 2.3 + uTime) * 0.6 + sin(x * 5.1 - 2.0 * uTime) * 0.4);
-  vec3 c = mix(ramp(uA, y), ramp(uB, y), uMix);
-  o = vec4(c, 1.0);
+  o = vec4(texture(uLut, vec2((y + 0.1) / 1.2, 0.5)).rgb, 1.0);
 }`;
 
 // ---------------------------------------------------------------- image sprite

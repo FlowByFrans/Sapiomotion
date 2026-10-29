@@ -216,7 +216,13 @@ export async function createJoin(R) {
     ctx.restore();
   }
 
-  return { scene, post, hud };
+  // full motion blur only while something moves; holds just need AA
+  const MOVING = [[T.wordsOut - 0.05, 2.0], [T.markIn, T.letters + 0.5], [T.logoOut - 0.05, T.wordsIn + 0.75]];
+  function subframes(t, full) {
+    return MOVING.some(([a, b]) => t >= a && t <= b) ? full : Math.min(full, 4);
+  }
+
+  return { scene, post, hud, subframes };
 }
 
 // ------------------------------------------------------------------ helpers
