@@ -67,8 +67,32 @@ node scripts/render.mjs --comp join --size 1080x1080 --out out/sapio-join-1080x1
 ```
 
 Timing lives in the `T` table at the top of `src/join.js`. The lockup comes
-from `assets/sapio/sapio-lockup.svg`, and the typeface is Figtree Medium
-(SIL OFL, `assets/fonts/`).
+from `assets/sapio/sapio-lockup.svg`, and the typeface is Figtree Medium.
+All fonts in `assets/fonts/` are under the SIL OFL; the license files are
+alongside them.
+
+## Sapio hype cut (brand book + whitepaper)
+
+`src/hype.js` is a 13-second editorial montage at 1920×1080 and 30 fps, cut
+to the rhythm of the `hype_real` reference:
+
+- a stutter open
+- a setup with whitepaper excerpt cards
+- a montage that accelerates into a 2-frame strobe
+- an exponential slow-down onto statements
+- the lockup
+
+Every on-screen line is quoted from the Sapio whitepaper, with a section label.
+There are no profit, yield or launch claims. The imagery is the brand assets
+from Drive (Brand & Design), converted into blue line engravings and duotones
+by the sprite shader. The type is Figtree (display and text), STIX Two Text
+(math) and JetBrains Mono (labels). `tools/hype_sound.py` scores the piece from
+the cut list the renderer writes (`out/hype-cuts.json`).
+
+```bash
+node scripts/render.mjs --comp hype --size 1920x1080 --sub 3 --out out/sapio-hype-1920x1080.mp4
+python3 tools/hype_sound.py        # needs out/hype-cuts.json from a render or still
+```
 
 ## Notes
 

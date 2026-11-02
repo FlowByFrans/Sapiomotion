@@ -152,7 +152,21 @@ uniform float uGridSpread;
 uniform vec3 uGridFlash;
 uniform float uAspect;      // w / h of the quad, for square cells
 uniform float uLod;         // mip bias: cheap defocus for soft fades
+uniform int uMode;          // 0 colour, 1 engraving, 2 duotone
+uniform vec3 uInk;
+uniform vec3 uPaper;
+uniform vec4 uHatch;        // line spacing (px), angle, contrast, cross-hatch threshold
+uniform vec2 uQuadPx;       // on-screen size of the quad, so hatching rides with the image
+uniform float uTone;        // brightness offset before toning
 out vec4 o;
+
+// Engraving: parallel lines whose width follows darkness and which bend
+// with tone, plus a cross-hatch in the shadows. Ink only; paper shows through.
+float hatchLine(float ph, float w){
+  float dist = abs(fract(ph) - 0.5) * 2.0;
+  float aa = fwidth(ph) * 1.6 + 0.03;
+  return (1.0 - smoothstep(w - aa, w + aa, dist)) * step(0.015, w);
+}
 
 float easeOutBack(float x){ float s = 1.9; x -= 1.0; return 1.0 + (s + 1.0) * x * x * x + s * x * x; }
 
@@ -187,6 +201,24 @@ void main(){
     float nz = texture(uNoise, vec2(a / TAU * 2.0, 0.37)).b + texture(uNoise, vec2(a / TAU * 5.0, 0.71)).r * 0.5;
     float e = uReveal * (0.8 + nz * 0.35);
     c *= smoothstep(e, e - 0.05, r);
+  }
+  if (uMode != 0) {
+    vec3 rgb = c.a > 0.004 ? c.rgb / c.a : vec3(1.0);
+    float L = clamp((luma(rgb) - 0.5) * uHatch.z + 0.5 + uTone, 0.0, 1.0);
+    if (uMode == 1) {
+      float d = 1.0 - L;
+      vec2 p = vUv * uQuadPx;
+      float wob = (texture(uNoise, vUv * 2.5).r - 0.5) * 1.4;
+      vec2 d1 = vec2(cos(uHatch.y), sin(uHatch.y));
+      float ink = hatchLine(dot(p, d1) / uHatch.x + L * 1.8 + wob, pow(d, 1.15) * 0.92);
+      float a2 = uHatch.y + 1.12;
+      vec2 d2 = vec2(cos(a2), sin(a2));
+      float w2 = clamp((d - uHatch.w) / (1.0 - uHatch.w), 0.0, 1.0) * 0.85;
+      ink = max(ink, hatchLine(dot(p, d2) / (uHatch.x * 0.85) + wob * 0.6, w2));
+      c = vec4(uInk, 1.0) * ink * c.a;
+    } else {
+      c = vec4(mix(uInk, uPaper, L), 1.0) * c.a;
+    }
   }
   c.rgb = mix(c.rgb, uTint * c.a, uTintAmt);
   c.rgb *= uBright;

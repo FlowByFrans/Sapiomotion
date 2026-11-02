@@ -50,6 +50,8 @@ page.on('pageerror', (e) => { console.error('[page error]', e.message); process.
 await page.goto(`http://127.0.0.1:${port}/src/index.html`);
 await page.waitForFunction(() => window.SAPIO);
 const info = await page.evaluate(([w, h, comp]) => window.SAPIO.init({ width: w, height: h, comp }), [W, H, COMP]);
+// comps with a cut list (the hype edit) publish it so the score can follow the picture
+if (info.cuts) fs.writeFileSync(path.join(ROOT, `out/${COMP}-cuts.json`), JSON.stringify({ fps: info.fps, frames: info.frames, cuts: info.cuts }, null, 1));
 if (args.debug) await page.evaluate((d) => { window.SAPIO_DEBUG = d; }, String(args.debug));
 
 const grab = async (i) => Buffer.from(await page.evaluate(([i, sub]) => window.SAPIO.frame(i, { subframes: sub }), [i, SUB]), 'base64');

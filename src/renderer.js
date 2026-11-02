@@ -77,6 +77,24 @@ export class Renderer {
 
   textureFromCanvas(cv) { return texFromCanvas(this.gl, cv); }
 
+  // Full-frame 2D layer, re-uploaded every sub-frame: no mipmaps, one texture.
+  layerTexture(cv) {
+    const gl = this.gl;
+    if (!this._layer) {
+      this._layer = { tex: gl.createTexture(), w: cv.width, h: cv.height };
+      gl.bindTexture(gl.TEXTURE_2D, this._layer.tex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, this._layer.tex);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    return this._layer;
+  }
+
   // ------------------------------------------------------------ primitives
   _full(prog, uniforms) {
     const gl = this.gl;
@@ -180,6 +198,8 @@ export class Renderer {
       uBright: p.bright ?? 1, uSwirl: p.swirl ?? 0, uSwirlC: p.swirlC ?? [0.5, 0.5], uReveal: p.reveal ?? 9,
       uGridN: p.gridN ?? 0, uGridT: p.gridT ?? 0, uGridDur: p.gridDur ?? 0.15, uGridSpread: p.gridSpread ?? 0.3,
       uGridFlash: p.gridFlash ?? [1, 1, 1], uAspect: q.aspect ?? q.w / q.h, uLod: p.lod ?? 0,
+      uMode: p.mode ?? 0, uInk: p.ink ?? [0, 0, 0], uPaper: p.paper ?? [1, 1, 1], uHatch: p.hatch ?? [6, 0.7, 1.2, 0.55],
+      uQuadPx: p.quadPx ?? [(q.w ?? 1) * (q.sx ?? 1), (q.h ?? 1) * (q.sy ?? 1)], uTone: p.tone ?? 0,
     });
   }
 
@@ -294,6 +314,7 @@ export class Renderer {
     const gl = this.gl;
     const shutter = opts.shutter ?? 0.5;
     const t0 = frame / fps;
+    this.frame = frame; // comps that cut hard pick their shot from this, not sub-frame time
     // a comp may ask for fewer sub-frames where nothing moves
     const N = comp.subframes ? comp.subframes(t0, opts.subframes ?? 8) : opts.subframes ?? 8;
     this.bind(this.tAccum, [0, 0, 0, 0]);
