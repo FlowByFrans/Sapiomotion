@@ -4,3 +4,4 @@ out/stills/
 out/*.wav
 out/preview*
 out/*-cuts.json
+__pycache__/
