@@ -4,7 +4,7 @@
 // spinning extruded mark and a typed-out wordmark. The last frame matches the
 // first, so it loops seamlessly.
 
-import { clamp, lerp, prog, ease } from './timeline.js';
+import { clamp, lerp, prog, ease, rot, squareToQuad } from './timeline.js';
 
 export const JOIN_META = { fps: 60, duration: 7.5 };
 
@@ -226,25 +226,6 @@ export async function createJoin(R) {
 }
 
 // ------------------------------------------------------------------ helpers
-function rot(a, b, ang) {
-  const c = Math.cos(ang), s = Math.sin(ang);
-  return [a * c - b * s, a * s + b * c];
-}
-
-// Homography taking the unit square to a quad (Heckbert), as a column-major
-// mat3: corners in order (0,0) (1,0) (1,1) (0,1).
-function squareToQuad(q) {
-  const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = q;
-  const dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3;
-  const dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3;
-  const den = dx1 * dy2 - dx2 * dy1;
-  const g = (dx3 * dy2 - dx2 * dy3) / den;
-  const h = (dx1 * dy3 - dx3 * dy1) / den;
-  const a = x1 - x0 + g * x1, b = x3 - x0 + h * x3, c = x0;
-  const d = y1 - y0 + g * y1, e = y3 - y0 + h * y3, f = y0;
-  return new Float32Array([a, d, g, b, e, h, c, f, 1]);
-}
-
 function wordTexture(R, text, px) {
   const ctx0 = document.createElement('canvas').getContext('2d');
   ctx0.font = `500 ${px}px Figtree`;

@@ -5,6 +5,7 @@ import { Renderer } from './renderer.js';
 import { createComp } from './comp.js';
 import { createJoin, JOIN_META } from './join.js';
 import { createHype, HYPE_META } from './hype.js';
+import { createReel, REEL_META } from './reel.js';
 import { FPS, DURATION } from './timeline.js';
 
 // compositions: the SRT spot and the "Join the competition" -> Sapio loop
@@ -12,6 +13,7 @@ const COMPS = {
   srt: { create: createComp, fps: FPS, duration: DURATION },
   join: { create: createJoin, ...JOIN_META },
   hype: { create: createHype, ...HYPE_META },
+  reel: { create: createReel, ...REEL_META },
 };
 
 const api = {
@@ -23,7 +25,7 @@ const api = {
     this.R = R;
     this.fps = def.fps;
     this.comp = await def.create(R);
-    return { frames: Math.round(def.fps * def.duration), fps: def.fps, cuts: this.comp.cuts };
+    return { frames: Math.round(def.fps * def.duration), fps: def.fps, cuts: this.comp.cuts, cues: this.comp.cues };
   },
 
   // Render one frame and return its pixels (top row first) as base64 RGBA.
